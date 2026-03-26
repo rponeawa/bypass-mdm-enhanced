@@ -171,12 +171,29 @@ select opt in "${options[@]}"; do
 		done
 		chflags uchg "$managed_client_plist" 2>/dev/null
 
-		# 7. Service Disablement (From Dora script logic)
-		info "Disabling MDM service agents..."
-		launchctl disable system/com.apple.ManagedClient.cloudconfigurationd 2>/dev/null
-		launchctl disable system/com.apple.ManagedClient.daemon 2>/dev/null
-		launchctl disable system/com.apple.ManagedClient.enroll 2>/dev/null
-		success "Services suppressed."
+		# 7. Service Disablement (Fully integrated from Dora script logic)
+		info "Disabling MDM service agents and daemons..."
+		
+		# User-level agent suppression
+		USER_IDS=$(dscl -f "$dscl_path" localhost -list /Local/Default/Users UniqueID 2>/dev/null | awk '$2>=501 {print $2}')
+		for USER_ID in $USER_IDS; do
+			launchctl disable "gui/${USER_ID}/com.apple.ManagedClientAgent.enrollagent" 2>/dev/null || true
+			launchctl bootout  "gui/${USER_ID}/com.apple.ManagedClientAgent.enrollagent" 2>/dev/null || true
+			launchctl disable "user/${USER_ID}/com.apple.ManagedClientAgent.enrollagent" 2>/dev/null || true
+			launchctl bootout  "user/${USER_ID}/com.apple.ManagedClientAgent.enrollagent" 2>/dev/null || true
+		done
+
+		# System-level daemon suppression
+		services=(
+			"com.apple.ManagedClient.cloudconfigurationd"
+			"com.apple.ManagedClient.daemon"
+			"com.apple.ManagedClient.enroll"
+		)
+		for service in "${services[@]}"; do
+			launchctl disable "system/$service" 2>/dev/null || true
+			launchctl bootout  "system/$service" 2>/dev/null || true
+		done
+		success "All MDM services and agents suppressed."
 
 		echo -e "\n${GRN}Bypass Completed Successfully!${NC}"
 		break ;;
