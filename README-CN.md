@@ -1,34 +1,24 @@
-# Bypass MDM Enhanced
+# Bypass MDM Enhanced (rponeawa)
 
-[English](README.md)
+[English Version / 英文版](README.md)
 
-本工具在 Assaf Dori 原始脚本的基础上进行了功能扩展。由 rponeawa 开发的增强版本通过对付费工具 micaixin.cn 的二进制文件进行逆向工程分析，整合了其核心绕过与持久化逻辑。
+本工具在 Assaf Dori 原始脚本的基础上进行了功能扩展。增强版本整合了通过对 **micaixin.cn** 商业工具进行逆向工程分析，以及对闲鱼 **@多啦快解** 脚本进行分析得出的核心绕过与持久化逻辑。
 
 ---
 
-## 技术增强 (逆向自 micaixin.cn)
+## 技术增强
 
-通过二进制分析，本版本实现了以下技术特性：
+本版本实现了通过二进制及脚本分析识别出的以下技术特性：
 
-**1. 网络域名屏蔽 (支持 IPv4 与 IPv6)**
-*   增加了额外的 Apple MDM 端点：`gdmf.apple.com`、`acmdm.apple.com` 以及 `albert.apple.com`。
-*   在系统 hosts 文件中同步应用 IPv4 (0.0.0.0) 和 IPv6 (::) 条目，防止在 VPN 环境下通过 IPv6 隧道进行连接尝试。
+### 1. 源自 micaixin.cn 的分析
+*   **系统守护进程抑制**：初始化系统标志位 `/var/db/.com.apple.mdmclient.daemon.forced_disable`，强制 `mdmclient` 进程在启动时终止。
+*   **直接修改配置**：利用 `PlistBuddy` 在系统核心数据库中将 `CloudConfigRecordFound`、`CloudConfigHasActivationRecord` 以及 `CloudConfigProfileInstalled` 显式设置为 `false`。
+*   **硬件级属性锁定**：对所有绕过标记和 Plist 配置文件应用 `uchg` (用户不可变) 标志，防止系统自动恢复。
+*   **IPv6 连接屏蔽**：在 hosts 文件中包含 IPv6 (`::`) 条目，防止通过 IPv6 隧道进行 MDM 同步。
 
-**2. 系统守护进程抑制**
-*   初始化系统标志位：`/var/db/.com.apple.mdmclient.daemon.forced_disable`。
-*   `mdmclient` 守护进程在启动序列中会检查此标志。一旦检测到，该进程将立即终止，从而阻断后台 MDM 同步。
-
-**3. 直接修改配置 Profile**
-*   利用 `PlistBuddy` 修改 `/var/db/ConfigurationProfiles/Settings/com.apple.ManagedClient.plist`。
-*   将以下布尔键值显式设置为 `false`：`CloudConfigRecordFound`、`CloudConfigHasActivationRecord` 以及 `CloudConfigProfileInstalled`。
-
-**4. 文件系统属性锁定**
-*   使用 `chflags` 对所有修改后的配置文件及标记应用 `uchg` (用户不可变) 标志。
-*   此操作确保 macOS 内核无法在系统更新或自动化维护期间覆盖或删除绕过配置。
-
-**5. 状态掩盖标记**
-*   部署特定标记文件，包括 `.CloudConfigDelete` 和 `.cloudConfigUserSkippedEnrollment`。
-*   这些标记指示系统设置进程跳过远程管理注册序列。
+### 2. 源自 @多啦快解 的分析
+*   **FileVault 磁盘解密**：包含检测并解锁受 FileVault 保护的 APFS 卷的逻辑，确保能够访问系统数据库。
+*   **扩展服务抑制**：实现了针对 `cloudconfigurationd` 及其他管理代理的显式 `launchctl` 禁用指令，作为额外的防御层。
 
 ---
 
@@ -55,38 +45,32 @@
 curl -L https://raw.githubusercontent.com/rponeawa/bypass-mdm-enhanced/main/bypass-mdm-enhanced.sh -o bypass-mdm.sh && chmod +x ./bypass-mdm.sh && ./bypass-mdm.sh
 ```
 
-**6. 磁盘卷检测**
-脚本将自动识别 System 卷和 Data 卷。
-
-**7. 绕过选项**
+**6. 绕过选项**
 选择选项 1: "Bypass MDM from Recovery"。
 
-**8. 账户配置**
+**7. 账户配置**
 配置临时管理员账户或使用默认值。
 
-**9. 完成操作**
-等待提示：“MDM Bypass Completed Successfully”。
+**8. 完成操作**
+等待提示：“Bypass Completed Successfully”。
 
-**10. 重启设备**
+**9. 重启设备**
 退出终端并重启 Mac。
 
 ---
 
 ## 安装后后续步骤
 
-**11. 身份验证**
+**10. 身份验证**
 使用临时账户登录 (默认值: Apple / 1234)。
 
-**12. 设置助手**
+**11. 设置助手**
 跳过所有初始提示 (Apple ID、Siri、Touch ID、定位服务)。
 
-**13. 创建正式账户**
+**12. 创建正式账户**
 前往“系统设置 > 用户与群组”，创建一个永久的管理员账户。
 
-**14. 账户切换**
-注销临时账户，并登录新创建的正式账户。
-
-**15. 系统清理**
+**13. 系统清理**
 在“系统设置”中删除临时的管理员账户。
 
 ---
@@ -97,7 +81,7 @@ curl -L https://raw.githubusercontent.com/rponeawa/bypass-mdm-enhanced/main/bypa
 确认设备处于恢复模式，并且目标磁盘上已存在有效的 macOS 安装。
 
 ### 权限被拒绝
-确保脚本具有执行权限：`chmod +x bypass-mdm-enhanced.sh`。
+确保脚本具有执行权限：`chmod +x bypass-mdm.sh`。
 
 ---
 
